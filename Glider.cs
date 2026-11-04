@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using HarmonyLib;
 using Il2Cpp;
 using Il2CppVehiclePhysics;
 using JoofOTHFramework;
@@ -553,28 +553,14 @@ public class Glider : MonoBehaviour
     static Vector3 U(NVector3 v) => new(v.X, v.Y, v.Z);
 }
 
-// The car's own network tick (the host for every car, clients for prediction). Only this mod
-// needs it so far; if another does, it belongs in JoofOTHFramework.
+// The car's own network tick (the host for every car, clients for prediction)
+[HarmonyPatch(typeof(VehicleBase), nameof(VehicleBase.FixedUpdateNetwork))]
 static class VehicleTick
 {
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    delegate void d_FixedUpdateNetwork(IntPtr self, IntPtr method);
-
-    static d_FixedUpdateNetwork original;
-
-    internal static void Install()
+    static void Postfix(VehicleBase __instance)
     {
-        if (original != null) return;
-        original = Detours.Apply<d_FixedUpdateNetwork>(
-            Detours.MethodPointer(typeof(VehicleBase), nameof(VehicleBase.FixedUpdateNetwork)), FixedUpdateNetwork);
-        Mod.Log.Msg("Hooked vehicle tick");
-    }
-
-    static void FixedUpdateNetwork(IntPtr self, IntPtr method)
-    {
-        original(self, method);
         if (Core.Quitting) return;
-        try { Glider.FixedTick(self); }
+        try { Glider.FixedTick(__instance.Pointer); }
         catch (Exception e) { Mod.Log.Error(e.ToString()); }
     }
 }

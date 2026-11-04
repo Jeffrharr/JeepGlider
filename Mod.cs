@@ -36,7 +36,6 @@ public class Mod : MelonMod
         OpenSeconds = c.CreateEntry("OpenSeconds", 1.5f, description: "How long it takes to open or fold.");
         Span = c.CreateEntry("Span", 10f, description: "Wingspan of the model in metres. Only changes how it looks.");
         Net.Register();
-        VehicleTick.Install();
     }
 
     // The flight model with the player's settings
