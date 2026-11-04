@@ -2,6 +2,8 @@
 
 ![JeepGlider](media/title.png)
 
+Download: [Nexus Mods](https://www.nexusmods.com/overthehill/mods/120) (mod 120).
+
 [MelonLoader](https://github.com/LavaGang/MelonLoader) mod for Over the Hill. Adds a JeepGlider roof cosmetic, a hang glider, free in the garage, that folds up on the car's roof. Honk to open it and fly off the next ridge; honk again to fold it away.
 
 - Honk: the mast rises and the leading edges swing out into a striped delta wing. Honk again and it folds back along the keel.
