@@ -1,7 +1,7 @@
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(JeepGlider.Mod), "JeepGlider", "1.0.0", "Joof")]
+[assembly: MelonInfo(typeof(JeepGlider.Mod), "JeepGlider", "1.0.1", "Joof")]
 [assembly: MelonGame("Funselektor", "over the hill")]
 
 namespace JeepGlider;

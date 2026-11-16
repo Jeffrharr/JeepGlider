@@ -92,8 +92,23 @@ static class Net
         return t;
     }
 
+    internal static void Diagnostics(System.Func<uint, bool> rigged)
+    {
+        var runner = HillNet.Runner;
+        if (runner == null) return;
+        Mod.Log.Msg($"Diag: {(runner.IsServer ? "host" : $"client, host has JeepGlider {HillNet.HostHas(Channel)}")}, " +
+                    $"own {(own == null ? "never sent" : $"car {own.Car} open {own.Open}, sent {ownSent}")}");
+        foreach (var s in remote.Values)
+            Mod.Log.Msg($"Diag: car {s.Car} said mounted {s.Mounted}, open {s.Open} at tick {s.Tick}; rigged here {rigged(s.Car)}" +
+                        (runner.IsServer && owners.TryGetValue(s.Car, out var p) ? $", player {p}" : ""));
+    }
+
     static void OnReceive(NetworkRunner runner, PlayerRef from, CarState s)
     {
+        // Opening and folding are rare, and the first thing to check when another player's glider doesn't fly
+        if (!remote.TryGetValue(s.Car, out var was) || was.Open != s.Open || was.Mounted != s.Mounted)
+            Mod.Log.Msg($"Car {s.Car}: glider {(s.Mounted ? s.Open ? "open" : "folded" : "not mounted")} " +
+                        $"(tick {s.Tick}{(runner.IsServer ? $", ours {runner.Tick.Raw}, player {from.PlayerId}" : "")})");
         remote[s.Car] = s;
         if (!runner.IsServer) return;
         if (!timelines.TryGetValue(s.Car, out var t)) timelines[s.Car] = t = new Timeline();

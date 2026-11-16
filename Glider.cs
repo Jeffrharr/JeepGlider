@@ -40,6 +40,8 @@ public class Glider : MonoBehaviour
         public TickState Tick;     // what the car's network tick last flew with
         public readonly History History = new(128);
         public float Opened = -1f, Drawn = -1f, LastToggle = float.NegativeInfinity;
+        public int TickedFrame = int.MinValue;  // the last frame the car's network tick flew it
+        public bool TickLogged;
     }
 
     // By the car's top object, and by its VehicleBase for the network tick
@@ -61,6 +63,9 @@ public class Glider : MonoBehaviour
     const float ToggleCooldown = 0.4f;
     const float StickDeadZone = 0.15f;
     const int PitchSteps = 10;
+    // A car whose network tick hasn't run for this many frames isn't simulated here: a client that
+    // doesn't predict its own car, which only the host moves
+    const int TickedRecently = 30;
 
     public Glider(IntPtr ptr) : base(ptr) { }
 
@@ -109,7 +114,7 @@ public class Glider : MonoBehaviour
             var obj = rig.Net;
             bool own = obj == null || obj.HasInputAuthority;
             // Cars this machine simulates open and fold in their network tick (FixedTick)
-            bool simulated = rig.Car != null && (own || obj.HasStateAuthority);
+            bool simulated = rig.Car != null && (own || obj.HasStateAuthority) && Time.frameCount - rig.TickedFrame <= TickedRecently;
             if (own && mounted && rig.Car != null)
             {
                 // Our own car: the horn opens and folds it
@@ -125,6 +130,12 @@ public class Glider : MonoBehaviour
             }
             if (!mounted) { rig.Open = false; rig.Pitch = 0f; }
             if (!own) Sync(rig, ref mounted);
+            // Our own car with no network tick here: tell the host from the frame instead
+            else if (!simulated && obj != null && HillNet.Runner is { } runner)
+            {
+                bool open = mounted && rig.Open;
+                Net.SendOwn(obj, runner.Tick.Raw, mounted, open, open ? rig.Pitch : 0f);
+            }
 
             rig.Mounted = mounted;
             if (rig.Holder.activeSelf != mounted) rig.Holder.SetActive(mounted);
@@ -173,6 +184,12 @@ public class Glider : MonoBehaviour
         bool own = obj == null || obj.HasInputAuthority;
         // The host simulates every car, a client only predicts its own
         if (!own && !obj.HasStateAuthority) return;
+        rig.TickedFrame = Time.frameCount;
+        if (!rig.TickLogged && obj != null && !obj.HasStateAuthority)
+        {
+            rig.TickLogged = true;
+            Mod.Log.Msg($"Our car {rig.Root.name} gets network ticks here (client prediction)");
+        }
 
         var runner = v.Runner;
         float dt = runner != null ? runner.DeltaTime : Time.fixedDeltaTime;
@@ -544,9 +561,13 @@ public class Glider : MonoBehaviour
         {
             if (rig.Car == null || rig.Root == null) continue;
             var rb = rig.Car.cachedRigidbody;
-            Mod.Log.Msg($"Diag: {rig.Root.name} mounted {rig.Mounted}, open {rig.Open} ({rig.Opened:0.00}), pitch {rig.Tick.Pitch:0.0}, flies {Net.Flies}, " +
+            var obj = rig.Net;
+            string who = obj == null ? "offline" : $"net id {obj.Id.Raw}, input {obj.HasInputAuthority}, state {obj.HasStateAuthority}";
+            Mod.Log.Msg($"Diag: {rig.Root.name} ({who}) mounted {rig.Mounted}, open {rig.Open} ({rig.Opened:0.00}), pitch {rig.Tick.Pitch:0.0}, flies {Net.Flies}, " +
+                        $"ticked {Time.frameCount - rig.TickedFrame} frames ago, kinematic {rb != null && rb.isKinematic}, " +
                         $"speed {(rb == null ? 0f : rb.velocity.magnitude):0.0} m/s, grounded {Grounded(rig.Car):0.00}");
         }
+        Net.Diagnostics(id => { foreach (var r in rigs.Values) if (r.Net != null && r.Net.Id.Raw == id) return true; return false; });
     }
 
     static NVector3 N(Vector3 v) => new(v.x, v.y, v.z);
